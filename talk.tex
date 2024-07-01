@@ -1,5 +1,6 @@
 \documentclass[aspectratio=169]{beamer}
 
+\usepackage[backend=bibtex,style=numeric,maxcitenames=1,sorting=none]{biblatex}
 \usepackage{graphicx}
 \usepackage{minted}
 \usemintedstyle{trac}
@@ -14,8 +15,10 @@
 
 \newcommand\chighlight[2]{\setlength{\fboxsep}{0pt}\colorbox{#1}{#2\strut}}
 
+\addbibresource{refs.bib}
+
 \usetheme{Berlin}
-% \setbeamertemplate{footline}[frame number]{}
+\setbeamertemplate{footline}[frame number]{}
 \setbeamertemplate{headline}{}
 \renewcommand{\insertnavigation}[1]{}
 
@@ -45,7 +48,7 @@
   \begin{itemize}
     \item Congruence closure algorithms are essential for solving the theory of
     equality and uninterpreted functions (EUF)
-    \vitem The solver will provide a a set of equalities and inequalities, and
+    \vitem The solver will provide a set of equalities and inequalities, and
     the congruence closure algorithm must determine if it is consistent
   \end{itemize}
 \end{frame}
@@ -65,7 +68,7 @@
 \begin{frame}{Proof-producing congruence closure}
   \begin{itemize}
     \item A proof-producing congruence closure algorithm was presented by
-    Nieuwenhuis et al. in 2005
+    Nieuwenhuis et al. in 2005~\cite{nieuwenhuis2005}
     \vitem It is based on a union-find data structure, and contructs an equality
     graph to represent the equivalence relation
     \pvitem Then, finding the explanation for the equivalence of two terms
@@ -92,13 +95,14 @@
 
 \begin{frame}{Keeping redundant equalities}
   \begin{itemize}
-    \item Flatt et al. at FMCAD'22 presented two proof producing congruence
-    closure algorithms that make use of redundant equalities to find smaller
-    proofs
+    \item Flatt et al. at FMCAD'22~\cite{flatt2022} presented two proof
+    producing congruence closure algorithms that make use of redundant
+    equalities to find smaller proofs (called \textsc{TreeOpt} and
+    \textsc{Greedy})
     \pvitem In the original work, they were implemented in an equality
     saturation tool
-    \pvitem Here, we present our effort to implement these algorithms in cvc5, a
-    state-of-the-art SMT solver
+    \pvitem Here, we present our effort to implement these algorithms in
+    cvc5~\cite{Barbosa2022-cvc5}, a state-of-the-art SMT solver
   \end{itemize}
 \end{frame}
 
@@ -111,7 +115,7 @@
 \begin{frame}{A side note: tree-size vs DAG-size}
   \begin{itemize}
     \item Finding the minimal proof for the equivalence of two terms is an
-    NP-hard problem
+    NP-hard problem~\cite{Fellner2017}
     \vitem However, this problem becomes easier if we don't allow the reuse of
     proof steps
     \pvitem We call this the \emph{tree size} of the proof, in contrast to the
@@ -125,7 +129,7 @@
     \vitem Computes the weight of each congruence edge by finding the size of
     the explanation of its justification, until a fixed point
     \vitem When asked to explain the equivalence between two terms, simply finds
-    the sortest path between them considering these weights
+    the shortest path between them considering these weights
   \end{itemize}
 \end{frame}
 
@@ -225,7 +229,7 @@
     redundant explanation
     \vitem This is because, after a congruence edge is added, the path between
     the terms of its justification will not change anymore
-    \pvitem Now that we keep redundant edges, this is not true anymore
+    \pvitem Now that we keep redundant edges, this is no longer true
   \end{itemize}
 \end{frame}
 
@@ -246,7 +250,11 @@
 
 \begin{frame}{Evaluation}
   \begin{itemize}
-    \item TODO
+    \item To evaluate our implementation, we ran cvc5 on all the 7502 problems
+    from the QF\_UF logic from the SMT-LIB benchmarks library
+    \vitem We ran the solver using each of the two new algorithms, as well
+    as the original algorithm present in cvc5 (from here on referred to as
+    \textsc{Vanilla})
   \end{itemize}
 \end{frame}
 
@@ -268,17 +276,25 @@
     \item The new algorithms had no meaningful overall impact in the final proof
     size
     \vitem On average the proofs from \textsc{Greedy} and \textsc{TreeOpt} were
-    0.2\% and 0.1\% larger that the \textsc{Vanilla} proofs
+    respectively 0.2\% and 0.1\% larger that the \textsc{Vanilla} proofs
     \vitem They were 80\% smaller than the \textsc{Vanilla} proofs in the best
     case, and 70\% bigger in the worst case
   \end{itemize}
 \end{frame}
 
-\begin{frame}{Results}
+\begin{frame}{Results: local impact}
   \begin{itemize}
-    \item We also measured the size of the proof returned by each call to
-    \texttt{get\_explanation}
-    \vitem In 83\% of cases, the proofs returned by the three algorithms had the
+    \item The final proof returned by the solver will include things other than
+    congruence closure steps, and can be affected by many variables that are hard
+    to control
+    \vitem To measure the impact more directly, we also recorded the size of the
+    proof returned by each call to \texttt{get\_explanation}
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Results: local impact}
+  \begin{itemize}
+    \item In 83\% of cases, the proofs returned by the three algorithms had the
     same size
     \vitem On average, the ``local'' proofs from the two new algorithms are 2\%
     smaller than the \textsc{Vanilla} proofs
@@ -286,14 +302,14 @@
   \end{itemize}
 \end{frame}
 
-\begin{frame}{Results}
+\begin{frame}{Results: local impact}
   \centerline{
   \includegraphics[width=0.45 \textwidth]{images/proof-ratio-hist-greedy.png}
   \includegraphics[width=0.45 \textwidth]{images/proof-ratio-hist-treeopt.png}
   }
 \end{frame}
 
-\begin{frame}{Results}
+\begin{frame}{Results: extra edges}
   \begin{minipage}[c][0.5 \textheight]{0.46 \textwidth}
   \begin{itemize}
     \item We also measured the number of redundant equalities added
@@ -309,8 +325,20 @@
 
 \begin{frame}{Conclusion}
   \begin{itemize}
-    \item TODO
+    \item We were able to show that congruence closure algorithms that make use
+    of redundant equalities can be efficiently implemented in a state-of-the-art
+    SMT solver, with reasonable overhead
+    \vitem However, they did not present a meaningful reduction in the final
+    proof size
+    \vitem Furthermore, even when looking at the local impact, the reduction in
+    proof size is modest
+    \pvitem It is soon to say whether this or similar techniques will be
+    practical for use in modern SMT solvers
   \end{itemize}
+\end{frame}
+
+\begin{frame}
+  \printbibliography
 \end{frame}
 
 \end{document}
