@@ -48,8 +48,9 @@
   \begin{itemize}
     \item Congruence closure algorithms are essential for solving the theory of
     equality and uninterpreted functions (EUF)
-    \vitem The solver will provide a set of equalities and inequalities, and
-    the congruence closure algorithm must determine if it is consistent
+    \vitem From the perspective of the congruence closure algorithm, the solver
+    will provide a set of equalities, and then make queries for whether two
+    terms are equivalent given those equalities
   \end{itemize}
 \end{frame}
 
@@ -62,6 +63,16 @@
     \pvitem Furthermore, we might also want a structured \textit{proof}, that
     uses these equalities as assumptions to derive the equivalence of the two
     terms
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Congruence closure in SMT solvers}
+  \begin{itemize}
+    \item Ideally we want these proofs and explanations to be small
+    \vitem For proof-producing SMT solvers, a smaller proof from congruence
+    closure will result in a smaller overall proof for the problem
+    \pvitem A smaller explanation represents a smaller conflict clause, which
+    will prune a larger portion of the search space
   \end{itemize}
 \end{frame}
 
@@ -79,9 +90,37 @@
 % TODO: why small proofs are important for SMT solvers
 
 \begin{frame}{Proof-producing congruence closure: Example}
-  \begin{itemize}
-    \item TODO
-  \end{itemize}
+  \begin{minipage}[c][0.5 \textheight]{0.3 \textwidth}
+  \begin{enumerate}
+    \item<2-> $x = y$
+    \item<3-> $y = z$
+    \item<4-> $z = w$
+    \item<5-> $x = z$
+    \item<6-> $g(y) = v$
+    \item<7-> $f(w) = g(x)$
+    \item<8-> $f(w) = v$
+    \item<9-> $u = f(x)$
+    \item<10-> $f(u) \stackrel{?}{=} f(v)$
+  \end{enumerate}
+  \end{minipage}
+  \hfill
+  \begin{minipage}{0.6 \textwidth}
+  \begin{overprint}
+  \includegraphics<1>[width=\textwidth]{example/example-0.png}
+  \includegraphics<2>[width=\textwidth]{example/example-1.png}
+  \includegraphics<3>[width=\textwidth]{example/example-2.png}
+  \includegraphics<4>[width=\textwidth]{example/example-3.png}
+  \includegraphics<5>[width=\textwidth]{example/example-3.png}
+  \includegraphics<6>[width=\textwidth]{example/example-5.png}
+  \includegraphics<7>[width=\textwidth]{example/example-6.png}
+  \includegraphics<8>[width=\textwidth]{example/example-6.png}
+  \includegraphics<9-10>[width=\textwidth]{example/example-8.png}
+  \includegraphics<11>[width=\textwidth]{example/example-e1.png}
+  \includegraphics<12>[width=\textwidth]{example/example-e2.png}
+  \includegraphics<13>[width=\textwidth]{example/example-e3.png}
+  \includegraphics<14>[width=\textwidth]{example/example-e4.png}
+  \end{overprint}
+  \end{minipage}
 \end{frame}
 
 \begin{frame}{Keeping redundant equalities}
@@ -89,7 +128,7 @@
     \item You may have noticed that we discard equalities between terms we
     already know to be equivalent
     \vitem However, keeping these equalities might allow us to find shorter
-    paths between terms, and thus sorter proofs
+    paths between terms, and thus shorter proofs
   \end{itemize}
 \end{frame}
 
@@ -107,9 +146,36 @@
 \end{frame}
 
 \begin{frame}{Keeping redundant equalities: Example}
-  \begin{itemize}
-    \item TODO
-  \end{itemize}
+  \begin{minipage}[c][0.5 \textheight]{0.3 \textwidth}
+  \begin{enumerate}
+    \item<2-> $x = y$
+    \item<3-> $y = z$
+    \item<4-> $z = w$
+    \item<5-> $x = z$
+    \item<6-> $g(y) = v$
+    \item<7-> $f(w) = g(x)$
+    \item<8-> $f(w) = v$
+    \item<9-> $u = f(x)$
+    \item<10-> $f(u) \stackrel{?}{=} f(v)$
+  \end{enumerate}
+  \end{minipage}
+  \hfill
+  \begin{minipage}{0.6 \textwidth}
+  \begin{overprint}
+  \includegraphics<1>[width=\textwidth]{example/example-0.png}
+  \includegraphics<2>[width=\textwidth]{example/example-1.png}
+  \includegraphics<3>[width=\textwidth]{example/example-2.png}
+  \includegraphics<4>[width=\textwidth]{example/example-3.png}
+  \includegraphics<5>[width=\textwidth]{example/example-4r.png}
+  \includegraphics<6>[width=\textwidth]{example/example-5r.png}
+  \includegraphics<7>[width=\textwidth]{example/example-6r.png}
+  \includegraphics<8>[width=\textwidth]{example/example-7r.png}
+  \includegraphics<9-10>[width=\textwidth]{example/example-8r.png}
+  \includegraphics<11>[width=\textwidth]{example/example-er1.png}
+  \includegraphics<12>[width=\textwidth]{example/example-er2.png}
+  \includegraphics<13>[width=\textwidth]{example/example-er3.png}
+  \end{overprint}
+  \end{minipage}
 \end{frame}
 
 \begin{frame}{A side note: tree-size vs DAG-size}
@@ -139,11 +205,13 @@
         let weights = {}
         for edge in edges:
             if not edge.is_congruence_edge():
-                weights[l, r] = 1
+                weights[edge] = 1
 
         until fixed point:
-            for (l, r) in congruence_edges:
-                weights[l, r] = find_shortest_path(l, r, weights).size()
+            for edge in congruence_edges:
+                let (j1, j2) = edge.justification()
+                weights[edge] = find_shortest_path(j1, j2, weights).size()
+
         return weights
   \end{minted}
 \end{frame}
@@ -169,6 +237,8 @@
     \vitem To explain the equivalence between two terms, finds the sortest path
     between them using these estimates as edge weights, but recurses when it
     encounters a congruence edge
+    \pvitem However, we don't recurse forever; we only go until a certain depth,
+    determined by a \emph{fuel} parameter
   \end{itemize}
 \end{frame}
 
@@ -178,9 +248,9 @@
         let weights = {}
         for edge in edges:
             if edge.is_congruence_edge():
-                weights[l, r] = 1
-            else:
                 weights[l, r] = unoptimized_explanation(l, r).size()
+            else:
+                weights[l, r] = 1
 
         return weights
   \end{minted}
@@ -226,7 +296,7 @@
 \begin{frame}{Avoiding circular explanations}
   \begin{itemize}
     \item When we were discarding redundant equalities, there could never be a
-    redundant explanation
+    circular explanation
     \vitem This is because, after a congruence edge is added, the path between
     the terms of its justification will not change anymore
     \pvitem Now that we keep redundant edges, this is no longer true
@@ -234,9 +304,13 @@
 \end{frame}
 
 \begin{frame}{Avoiding circular explanations: Example}
-  \begin{itemize}
-    \item TODO
-  \end{itemize}
+  \begin{center}
+  \begin{overprint}
+  \includegraphics<1>[width=0.6 \textwidth]{example/circle-0.png}
+  \includegraphics<2>[width=0.6 \textwidth]{example/circle-1.png}
+  \includegraphics<3>[width=0.6 \textwidth]{example/circle-2.png}
+  \end{overprint}
+  \end{center}
 \end{frame}
 
 \begin{frame}{Avoiding circular explanations}
